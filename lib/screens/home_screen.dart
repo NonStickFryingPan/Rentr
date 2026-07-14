@@ -23,7 +23,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Pull updates from Rentry.co automatically on app startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.notesNotifier.pullAllNotes();
+      widget.notesNotifier.pullAllNotes().catchError((e) {
+        debugPrint('HomeScreen: Startup pull failed: $e');
+      });
     });
   }
 
@@ -59,10 +61,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final rootContext = context;
               Navigator.of(context).pop();
               await widget.notesNotifier.deleteNote(note.url);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (rootContext.mounted) {
+                ScaffoldMessenger.of(rootContext).showSnackBar(
                   const SnackBar(content: Text('Note deleted locally')),
                 );
               }
@@ -108,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Show bottom sheet to configure default edit code
   void _showSettingsBottomSheet() {
     final controller = TextEditingController(text: SettingsService.getDefaultEditCode());
+    final rootContext = context;
     
     showModalBottomSheet(
       context: context,
@@ -165,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 await SettingsService.setDefaultEditCode(controller.text);
                 if (context.mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                }
+                if (rootContext.mounted) {
+                  ScaffoldMessenger.of(rootContext).showSnackBar(
                     const SnackBar(content: Text('Settings saved successfully')),
                   );
                 }
@@ -273,13 +279,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 isChecking = true;
               });
 
+               final currentText = url.trim();
               debounce = Timer(const Duration(milliseconds: 500), () async {
-                final result = await widget.notesNotifier.checkUrlAvailability(url.trim());
-                if (context.mounted) {
-                  setState(() {
-                    isChecking = false;
-                    isAvailable = result;
-                  });
+                try {
+                  final result = await widget.notesNotifier.checkUrlAvailability(currentText);
+                  if (context.mounted && urlController.text.trim() == currentText) {
+                    setState(() {
+                      isChecking = false;
+                      isAvailable = result;
+                    });
+                  }
+                } catch (e) {
+                  debugPrint('URL check error: $e');
+                  if (context.mounted && urlController.text.trim() == currentText) {
+                    setState(() {
+                      isChecking = false;
+                      isAvailable = null;
+                    });
+                  }
                 }
               });
             }

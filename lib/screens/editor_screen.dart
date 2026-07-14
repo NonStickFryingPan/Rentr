@@ -33,6 +33,8 @@ class _EditorScreenState extends State<EditorScreen> {
   Timer? _visibilityTimer;
   String _initialContent = '';
   late Note _currentNoteState;
+  bool _isSaveInProgress = false;
+  bool _needsAutosave = false;
 
   @override
   void initState() {
@@ -82,13 +84,27 @@ class _EditorScreenState extends State<EditorScreen> {
 
   // Load the note content from disk
   Future<void> _loadContent() async {
-    final content = await widget.notesNotifier.getNoteContent(widget.note.url);
-    if (mounted) {
-      setState(() {
-        _textController.text = content;
-        _initialContent = content;
-        _isLoading = false;
-      });
+    try {
+      final content = await widget.notesNotifier.getNoteContent(widget.note.url);
+      if (mounted) {
+        setState(() {
+          _textController.text = content;
+          _initialContent = content;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('EditorScreen: Failed to load content: $e');
+      if (mounted) {
+        setState(() {
+          _textController.text = '';
+          _initialContent = '';
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load note content: $e')),
+        );
+      }
     }
   }
 
@@ -98,34 +114,51 @@ class _EditorScreenState extends State<EditorScreen> {
 
     if (_autosaveTimer?.isActive ?? false) _autosaveTimer!.cancel();
     
-    _autosaveTimer = Timer(const Duration(milliseconds: 1000), () async {
-      if (!mounted) return;
+    _autosaveTimer = Timer(const Duration(milliseconds: 1000), () {
+      _triggerAutosave();
+    });
+  }
+
+  Future<void> _triggerAutosave() async {
+    if (!mounted) return;
+    if (_isSaveInProgress) {
+      _needsAutosave = true;
+      return;
+    }
+
+    _isSaveInProgress = true;
+    if (mounted) {
       setState(() {
         _isSaving = true;
       });
+    }
 
-      try {
-        await widget.notesNotifier.saveNoteOffline(_currentNoteState, _textController.text);
-        
-        // Retrieve the updated Note state from notifier list (e.g. title changed)
-        final notes = widget.notesNotifier.value;
-        final index = notes.indexWhere((n) => n.url == _currentNoteState.url);
-        if (index != -1 && mounted) {
-          setState(() {
-            _currentNoteState = notes[index];
-          });
-        }
-        _initialContent = _textController.text;
-      } catch (e) {
-        debugPrint('Autosave error: $e');
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSaving = false;
-          });
-        }
+    try {
+      await widget.notesNotifier.saveNoteOffline(_currentNoteState, _textController.text);
+      
+      // Retrieve the updated Note state from notifier list (e.g. title changed)
+      final notes = widget.notesNotifier.value;
+      final index = notes.indexWhere((n) => n.url == _currentNoteState.url);
+      if (index != -1 && mounted) {
+        setState(() {
+          _currentNoteState = notes[index];
+        });
       }
-    });
+      _initialContent = _textController.text;
+    } catch (e) {
+      debugPrint('Autosave error: $e');
+    } finally {
+      _isSaveInProgress = false;
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+      if (_needsAutosave) {
+        _needsAutosave = false;
+        _triggerAutosave();
+      }
+    }
   }
 
   // POST local changes to Rentry.co
@@ -270,12 +303,14 @@ class _EditorScreenState extends State<EditorScreen> {
         titleSpacing: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () {
+          onPressed: () async {
             if (hasUnsavedChanges) {
               _autosaveTimer?.cancel();
-              widget.notesNotifier.saveNoteOffline(_currentNoteState, _textController.text);
+              await widget.notesNotifier.saveNoteOffline(_currentNoteState, _textController.text);
             }
-            Navigator.pop(context);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
           },
         ),
         title: Column(

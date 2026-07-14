@@ -8,7 +8,7 @@ class RentryClient {
   
   // Fetch a fresh CSRF token from the rentry.co homepage
   Future<String> _fetchCsrfToken() async {
-    final response = await http.get(Uri.parse(baseUrl));
+    final response = await http.get(Uri.parse(baseUrl)).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
       throw Exception('Failed to load rentry.co to fetch CSRF token');
     }
@@ -41,7 +41,7 @@ class RentryClient {
   // Check if a URL name is available (returns true if available/404, false if taken/200)
   Future<bool> checkUrlAvailability(String url) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/$url'));
+      final response = await http.get(Uri.parse('$baseUrl/$url')).timeout(const Duration(seconds: 10));
       return response.statusCode == 404;
     } catch (_) {
       // In case of network errors, we'll bubble up or return false
@@ -54,7 +54,7 @@ class RentryClient {
     final response = await http.get(
       Uri.parse('$baseUrl/$url/edit'),
       headers: {'Referer': baseUrl},
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final body = response.body;
@@ -117,7 +117,7 @@ class RentryClient {
           'text': content,
           'metadata': metadata,
         },
-      );
+      ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -150,7 +150,7 @@ class RentryClient {
           'text': content,
           'metadata': metadata,
         },
-      );
+      ).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
