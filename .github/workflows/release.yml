@@ -1,0 +1,50 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger only on version tags, e.g. v1.4, v2.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/rentr.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/rentr.apk
+          name: ${{ github.ref_name }}
+          body: |
+            Release ${{ github.ref_name }} of Rentr.
+            
+            Changelog:
+            * Build release APK automatically via CI/CD.
+            
+            Note: The APK is unsigned, so you may see a warning when installing because I was too lazy to sign it.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

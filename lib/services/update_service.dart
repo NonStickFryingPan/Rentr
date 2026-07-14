@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 class UpdateService {
   static const String currentVersion = '1.3';
@@ -116,12 +118,9 @@ class UpdateService {
             child: const Text('Later', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              final uri = Uri.parse(downloadUrl);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
+              _performBackgroundUpdate(context, downloadUrl);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F172A),
@@ -133,5 +132,51 @@ class UpdateService {
         ],
       ),
     );
+  }
+
+  // Download APK in the background and trigger the package installer channel
+  static Future<void> _performBackgroundUpdate(BuildContext context, String downloadUrl) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 16),
+            Text('Downloading update in the background...'),
+          ],
+        ),
+        duration: Duration(days: 1), // Indefinite until manual check finishes
+      ),
+    );
+
+    try {
+      final response = await http.get(Uri.parse(downloadUrl));
+      if (response.statusCode == 200) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Download complete. Launching installer...')),
+        );
+
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/rentr.apk');
+        await file.writeAsBytes(response.bodyBytes);
+
+        const platform = MethodChannel('com.luqmanmalik.rentry/install');
+        await platform.invokeMethod('installApk', file.path);
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Background update failed: $e');
+      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to download update: ${e.toString()}')),
+      );
+    }
   }
 }

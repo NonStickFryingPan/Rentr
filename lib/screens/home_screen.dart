@@ -192,10 +192,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: const Text('Save Settings', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            const Divider(height: 32),
-            const Text(
-              'App Version & Updates',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+             const Divider(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'App Version & Updates',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+                ),
+                Text(
+                  'v${UpdateService.currentVersion}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             // Check for Updates Row
@@ -232,8 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () async {
                 Navigator.pop(context); // Dismiss the sheet first
                 final uri = Uri.parse(UpdateService.webReleaseUrl);
-                if (await canLaunchUrl(uri)) {
+                try {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                  debugPrint('Failed to launch URL: $e');
+                  if (rootContext.mounted) {
+                    ScaffoldMessenger.of(rootContext).showSnackBar(
+                      const SnackBar(content: Text('Could not open releases in browser.')),
+                    );
+                  }
                 }
               },
             ),
