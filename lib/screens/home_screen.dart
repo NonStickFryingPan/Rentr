@@ -5,6 +5,7 @@ import '../models/note.dart';
 import '../services/notes_notifier.dart';
 import '../services/settings_service.dart';
 import 'editor_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/update_service.dart';
 import '../services/error_helper.dart';
 
@@ -190,6 +191,51 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               child: const Text('Save Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const Divider(height: 32),
+            const Text(
+              'App Version & Updates',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            // Check for Updates Row
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
+              ),
+              title: const Text('Check for Updates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('Check GitHub for latest release versions', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context); // Dismiss the sheet first
+                UpdateService.checkForUpdates(rootContext, showFeedback: true);
+              },
+            ),
+            // GitHub Releases Row
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.open_in_browser, color: Color(0xFF0F172A)),
+              ),
+              title: const Text('View GitHub Releases', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('Open repository releases in system browser', style: TextStyle(fontSize: 12)),
+              onTap: () async {
+                Navigator.pop(context); // Dismiss the sheet first
+                final uri = Uri.parse(UpdateService.webReleaseUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
             ),
           ],
         ),

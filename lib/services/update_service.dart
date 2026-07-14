@@ -9,7 +9,13 @@ class UpdateService {
   static const String webReleaseUrl = 'https://github.com/NonStickFryingPan/Rentr/releases/latest';
 
   // Check for updates and show dialog if a new version is available
-  static Future<void> checkForUpdates(BuildContext context) async {
+  static Future<void> checkForUpdates(BuildContext context, {bool showFeedback = false}) async {
+    if (showFeedback && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checking for updates...')),
+      );
+    }
+
     try {
       final response = await http.get(
         Uri.parse(repoUrl),
@@ -33,12 +39,33 @@ class UpdateService {
           }
 
           if (context.mounted) {
+            if (showFeedback) ScaffoldMessenger.of(context).clearSnackBars();
             _showUpdateDialog(context, latestTag, downloadUrl);
           }
+        } else {
+          if (showFeedback && context.mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Rentr is up to date!')),
+            );
+          }
+        }
+      } else {
+        if (showFeedback && context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to check for updates: Server error ${response.statusCode}')),
+          );
         }
       }
     } catch (e) {
       debugPrint('UpdateCheck failed: $e');
+      if (showFeedback && context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to check for updates. Please check your connection.')),
+        );
+      }
     }
   }
 
