@@ -1,7 +1,7 @@
 <div align="center">
 
 # Rentr
-**A minimal Rentry notes manager for android**
+**A minimal vibecoded Rentry notes manager for android**
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat-square&logo=flutter&logoColor=white)
 
