@@ -1,0 +1,110 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+
+class UpdateService {
+  static const String currentVersion = '1.1';
+  static const String repoUrl = 'https://api.github.com/repos/NonStickFryingPan/Rentr/releases/latest';
+  static const String webReleaseUrl = 'https://github.com/NonStickFryingPan/Rentr/releases/latest';
+
+  // Check for updates and show dialog if a new version is available
+  static Future<void> checkForUpdates(BuildContext context) async {
+    try {
+      final response = await http.get(
+        Uri.parse(repoUrl),
+        headers: {'Accept': 'application/vnd.github.v3+json'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final latestTag = data['tag_name'] as String? ?? '';
+        
+        if (latestTag.isNotEmpty && _isNewer(currentVersion, latestTag)) {
+          // Find APK asset URL if it exists
+          String downloadUrl = webReleaseUrl;
+          final assets = data['assets'] as List<dynamic>? ?? [];
+          for (final asset in assets) {
+            final name = asset['name'] as String? ?? '';
+            if (name.endsWith('.apk')) {
+              downloadUrl = asset['browser_download_url'] as String? ?? webReleaseUrl;
+              break;
+            }
+          }
+
+          if (context.mounted) {
+            _showUpdateDialog(context, latestTag, downloadUrl);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('UpdateCheck failed: $e');
+    }
+  }
+
+  // Safe SemVer version comparison helper
+  static bool _isNewer(String current, String latest) {
+    try {
+      final currentClean = current.replaceAll('v', '').trim();
+      final latestClean = latest.replaceAll('v', '').trim();
+      
+      final currentParts = currentClean.split('.').map((s) => int.tryParse(s) ?? 0).toList();
+      final latestParts = latestClean.split('.').map((s) => int.tryParse(s) ?? 0).toList();
+      
+      final maxLength = currentParts.length > latestParts.length ? currentParts.length : latestParts.length;
+      for (var i = 0; i < maxLength; i++) {
+        final currentVal = i < currentParts.length ? currentParts[i] : 0;
+        final latestVal = i < latestParts.length ? latestParts[i] : 0;
+        
+        if (latestVal > currentVal) {
+          return true;
+        } else if (latestVal < currentVal) {
+          return false;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  static void _showUpdateDialog(BuildContext context, String version, String downloadUrl) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.system_update_alt, color: Color(0xFF0F172A)),
+            const SizedBox(width: 12),
+            const Text('Update Available'),
+          ],
+        ),
+        content: Text(
+          'A new version of Rentr ($version) is available. Would you like to download and install the update?',
+          style: const TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final uri = Uri.parse(downloadUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Update Now', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}

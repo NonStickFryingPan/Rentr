@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/note.dart';
 import '../services/notes_notifier.dart';
+import '../services/error_helper.dart';
 
 class EditorScreen extends StatefulWidget {
   final Note note;
@@ -202,7 +203,7 @@ class _EditorScreenState extends State<EditorScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Post Failed'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(cleanErrorMessage(e)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -270,7 +271,7 @@ class _EditorScreenState extends State<EditorScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Pull Failed'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(cleanErrorMessage(e)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

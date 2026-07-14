@@ -5,6 +5,8 @@ import '../models/note.dart';
 import '../services/notes_notifier.dart';
 import '../services/settings_service.dart';
 import 'editor_screen.dart';
+import '../services/update_service.dart';
+import '../services/error_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   final NotesNotifier notesNotifier;
@@ -27,6 +29,8 @@ class _HomeScreenState extends State<HomeScreen> {
       widget.notesNotifier.pullAllNotes().catchError((e) {
         debugPrint('HomeScreen: Startup pull failed: $e');
       });
+      // Check for updates off of GitHub releases
+      UpdateService.checkForUpdates(context);
     });
   }
 
@@ -96,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Post Error'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(cleanErrorMessage(e)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -462,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context: context,
                                 builder: (context) => AlertDialog(
                                   title: const Text('Import Error'),
-                                  content: Text(e.toString().replaceAll('Exception: ', '')),
+                                  content: Text(cleanErrorMessage(e)),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(context),
