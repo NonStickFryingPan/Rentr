@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/note.dart';
 import '../services/notes_notifier.dart';
 import '../services/settings_service.dart';
@@ -664,6 +665,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         heightFactor: 0.76, 
                         child: GestureDetector(
                           onTap: () => _openEditor(note),
+                          onLongPress: () {
+                            final link = 'https://rentry.co/${note.url}';
+                            Clipboard.setData(ClipboardData(text: link));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Copied link: $link'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
                           child: Container(
                             height: 140, // Uniform card height for consistent cascading alignment
                             margin: const EdgeInsets.only(bottom: 16),
