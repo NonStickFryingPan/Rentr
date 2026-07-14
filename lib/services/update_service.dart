@@ -4,11 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class UpdateService {
-  static const String currentVersion = '1.3';
   static const String repoUrl = 'https://api.github.com/repos/NonStickFryingPan/Rentr/releases/latest';
   static const String webReleaseUrl = 'https://github.com/NonStickFryingPan/Rentr/releases/latest';
+
+  // Fetch package version dynamically from the platform
+  static Future<String> getCurrentVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return info.version;
+    } catch (_) {
+      return '1.3.0';
+    }
+  }
 
   // Check for updates and show dialog if a new version is available
   static Future<void> checkForUpdates(BuildContext context, {bool showFeedback = false}) async {
@@ -27,8 +37,9 @@ class UpdateService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final latestTag = data['tag_name'] as String? ?? '';
+        final currentVer = await getCurrentVersion();
         
-        if (latestTag.isNotEmpty && _isNewer(currentVersion, latestTag)) {
+        if (latestTag.isNotEmpty && _isNewer(currentVer, latestTag)) {
           // Find APK asset URL if it exists
           String downloadUrl = webReleaseUrl;
           final assets = data['assets'] as List<dynamic>? ?? [];

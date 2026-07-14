@@ -21,10 +21,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String _appVersion = '1.3.0';
 
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
     // Pull updates from Rentry.co automatically on app startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.notesNotifier.pullAllNotes().catchError((e) {
@@ -33,6 +35,15 @@ class _HomeScreenState extends State<HomeScreen> {
       // Check for updates off of GitHub releases
       UpdateService.checkForUpdates(context);
     });
+  }
+
+  Future<void> _loadAppVersion() async {
+    final version = await UpdateService.getCurrentVersion();
+    if (mounted) {
+      setState(() {
+        _appVersion = version;
+      });
+    }
   }
 
   @override
@@ -200,8 +211,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   'App Version & Updates',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
-                Text(
-                  'v${UpdateService.currentVersion}',
+                 Text(
+                  'v$_appVersion',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                 ),
               ],
