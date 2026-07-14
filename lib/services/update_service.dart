@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateService {
-  static const String currentVersion = '1.1';
+  static const String currentVersion = '1.3';
   static const String repoUrl = 'https://api.github.com/repos/NonStickFryingPan/Rentr/releases/latest';
   static const String webReleaseUrl = 'https://github.com/NonStickFryingPan/Rentr/releases/latest';
 
