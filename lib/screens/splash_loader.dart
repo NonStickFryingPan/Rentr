@@ -15,10 +15,8 @@ class AppSplashLoader extends StatefulWidget {
   State<AppSplashLoader> createState() => _AppSplashLoaderState();
 }
 
-class _AppSplashLoaderState extends State<AppSplashLoader> with TickerProviderStateMixin {
-  late AnimationController _pulseController;
+class _AppSplashLoaderState extends State<AppSplashLoader> with SingleTickerProviderStateMixin {
   late AnimationController _expandController;
-  late Animation<double> _pulseAnimation;
   late Animation<double> _expandAnimation;
   
   bool _isExpanding = false;
@@ -26,15 +24,6 @@ class _AppSplashLoaderState extends State<AppSplashLoader> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
     _expandController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -69,7 +58,6 @@ class _AppSplashLoaderState extends State<AppSplashLoader> with TickerProviderSt
       setState(() {
         _isExpanding = true;
       });
-      _pulseController.stop();
       _expandController.forward().then((_) {
         widget.onFinished();
       });
@@ -78,7 +66,6 @@ class _AppSplashLoaderState extends State<AppSplashLoader> with TickerProviderSt
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _expandController.dispose();
     super.dispose();
   }
@@ -111,54 +98,6 @@ class _AppSplashLoaderState extends State<AppSplashLoader> with TickerProviderSt
                   ),
                 );
               },
-            ),
-          ),
-
-        // Central loader (fade out when expanding)
-        if (!_isExpanding)
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ScaleTransition(
-                  scale: _pulseAnimation,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        )
-                      ],
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor: AlwaysStoppedAnimation<Color>(pastelBg),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Syncing your notes...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
             ),
           ),
       ],

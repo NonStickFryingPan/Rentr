@@ -22,6 +22,9 @@ class UpdateService {
 
   // Check for updates and show dialog if a new version is available
   static Future<void> checkForUpdates(BuildContext context, {bool showFeedback = false}) async {
+    // Clean up any old downloaded APK first
+    await cleanUpTempApk();
+
     if (showFeedback && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Checking for updates...')),
@@ -188,6 +191,20 @@ class UpdateService {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Failed to download update: ${e.toString()}')),
       );
+    }
+  }
+
+  // Clean up the downloaded APK from the temporary directory
+  static Future<void> cleanUpTempApk() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/rentr.apk');
+      if (await file.exists()) {
+        await file.delete();
+        debugPrint('Cleaned up downloaded update APK.');
+      }
+    } catch (e) {
+      debugPrint('Failed to clean up temp APK: $e');
     }
   }
 }
