@@ -8,6 +8,7 @@ import 'editor_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/update_service.dart';
 import '../services/error_helper.dart';
+import 'splash_loader.dart';
 
 class HomeScreen extends StatefulWidget {
   final NotesNotifier notesNotifier;
@@ -22,16 +23,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   String _appVersion = '1.3.0';
+  bool _showSplash = true;
+  late Future<void> _syncFuture;
 
   @override
   void initState() {
     super.initState();
     _loadAppVersion();
-    // Pull updates from Rentry.co automatically on app startup
+    // Start pulling updates from Rentry.co immediately on startup
+    _syncFuture = widget.notesNotifier.pullAllNotes();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.notesNotifier.pullAllNotes().catchError((e) {
-        debugPrint('HomeScreen: Startup pull failed: $e');
-      });
       // Check for updates off of GitHub releases
       UpdateService.checkForUpdates(context);
     });
@@ -440,14 +442,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: (isAvailable == true && !isChecking)
                       ? () {
                           Navigator.pop(context);
+                          final list = widget.notesNotifier.value;
+                          final avoidColor = list.isNotEmpty ? list.first.colorValue : null;
+                          final availableColors = NotesNotifier.cardColors
+                              .where((c) => c != avoidColor)
+                              .toList();
+                          final colorVal = availableColors[
+                              DateTime.now().millisecond % availableColors.length];
+
                           final newNote = Note(
                             url: urlController.text.trim(),
                             editCode: editCodeController.text.trim(),
                             title: 'New Note',
                             updatedAt: DateTime.now(),
+                            createdAt: DateTime.now(),
                             isSynced: false,
-                            colorValue: NotesNotifier.cardColors[
-                                DateTime.now().millisecond % NotesNotifier.cardColors.length],
+                            colorValue: colorVal,
                             metadata: '',
                           );
                           _openEditor(newNote);
@@ -572,7 +582,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
@@ -892,6 +904,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: const Icon(Icons.add, size: 36),
       ),
+    ),
+    if (_showSplash)
+      Positioned.fill(
+        child: AppSplashLoader(
+          syncFuture: _syncFuture,
+          onFinished: () {
+            setState(() {
+              _showSplash = false;
+            });
+          },
+        ),
+      ),
+    ],
     );
   }
 }

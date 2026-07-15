@@ -36,18 +36,40 @@ class NotesNotifier extends ValueNotifier<List<Note>> {
     return 'Untitled Note';
   }
 
-  // Choose a random color value from our palette
-  int _getRandomColor() {
+  // Choose a random color value from our palette, avoiding specific colors if provided
+  int _getRandomColor({List<int> avoidColors = const []}) {
     final random = Random();
-    return cardColors[random.nextInt(cardColors.length)];
+    final allowedColors = cardColors.where((color) => !avoidColors.contains(color)).toList();
+    if (allowedColors.isEmpty) {
+      return cardColors[random.nextInt(cardColors.length)];
+    }
+    return allowedColors[random.nextInt(allowedColors.length)];
   }
 
   // Load all notes from storage
   Future<void> loadNotes() async {
     final notes = await _storageService.getNotes();
-    // Sort notes so that the most recently updated notes appear first or last
-    // Let's sort with newest on top (as in index card layouts)
-    notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    // Sort notes so that the newest created notes appear first
+    notes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Self-healing pass: ensure no two adjacent notes have the same color
+    bool hasColorChanges = false;
+    for (int i = 1; i < notes.length; i++) {
+      if (notes[i].colorValue == notes[i - 1].colorValue) {
+        final avoidColors = [notes[i - 1].colorValue];
+        if (i + 1 < notes.length) {
+          avoidColors.add(notes[i + 1].colorValue);
+        }
+        final newColor = _getRandomColor(avoidColors: avoidColors);
+        notes[i] = notes[i].copyWith(colorValue: newColor);
+        hasColorChanges = true;
+      }
+    }
+
+    if (hasColorChanges) {
+      await _storageService.saveNotesIndex(notes);
+    }
+
     value = notes;
   }
 
@@ -58,18 +80,25 @@ class NotesNotifier extends ValueNotifier<List<Note>> {
     final content = rawData['content'] ?? '';
     final metadata = rawData['metadata'] ?? '';
     
-    // 2. Create note object
+    // 2. Determine color to avoid adjacent duplicates
+    final avoidColors = <int>[];
+    if (value.isNotEmpty) {
+      avoidColors.add(value.first.colorValue);
+    }
+
+    // 3. Create note object
     final note = Note(
       url: url,
       editCode: editCode,
       title: _extractTitle(content),
       updatedAt: DateTime.now(),
+      createdAt: DateTime.now(),
       isSynced: true,
-      colorValue: _getRandomColor(),
+      colorValue: _getRandomColor(avoidColors: avoidColors),
       metadata: metadata,
     );
 
-    // 3. Save to local storage and refresh list
+    // 4. Save to local storage and refresh list
     await _storageService.saveNote(note, content);
     await loadNotes();
   }
@@ -85,14 +114,21 @@ class NotesNotifier extends ValueNotifier<List<Note>> {
     // 2. Upload to Rentry.co (starts with empty metadata)
     final actualEditCode = await _rentryClient.createNote(url, editCode, content, '');
 
-    // 3. Save metadata and content locally
+    // 3. Determine color to avoid adjacent duplicates
+    final avoidColors = <int>[];
+    if (value.isNotEmpty) {
+      avoidColors.add(value.first.colorValue);
+    }
+
+    // 4. Save metadata and content locally
     final note = Note(
       url: url,
       editCode: actualEditCode,
       title: _extractTitle(content),
       updatedAt: DateTime.now(),
+      createdAt: DateTime.now(),
       isSynced: true,
-      colorValue: _getRandomColor(),
+      colorValue: _getRandomColor(avoidColors: avoidColors),
       metadata: '',
     );
 
